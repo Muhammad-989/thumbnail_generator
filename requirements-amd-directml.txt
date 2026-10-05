@@ -1,0 +1,10 @@
+# Native Windows only. Do not install this inside WSL.
+# torch-directml supplies the PyTorch DirectML device for experimental inference.
+torch-directml
+diffusers==0.30.3
+transformers>=4.44,<4.47
+accelerate>=0.33,<1
+safetensors>=0.4
+ftfy>=6.2
+huggingface_hub>=0.24,<1
+Pillow>=10.0,<12

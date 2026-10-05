@@ -1,0 +1,12 @@
+# ROCm-compatible Linux AMD GPU setup.
+# Install torch and torchvision first from the ROCm command generated at:
+# https://pytorch.org/get-started/locally/
+diffusers==0.30.3
+transformers>=4.44,<4.47
+accelerate>=0.33,<1
+datasets>=2.20,<3
+peft>=0.12,<0.15
+safetensors>=0.4
+ftfy>=6.2
+huggingface_hub>=0.24,<1
+Pillow>=10.0,<12

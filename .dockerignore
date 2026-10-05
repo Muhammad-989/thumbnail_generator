@@ -1,0 +1,12 @@
+.venv/
+.venv-*/
+__pycache__/
+*.pyc
+.git/
+.cache/
+data/
+outputs/
+*.zip
+*.safetensors
+.env
+curated_captioned_thumbnails/images/

@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.cache/
+huggingface/
+data/
+outputs/
+curated_captioned_thumbnails/
+*.zip
+*.safetensors
+.pytest_cache/
