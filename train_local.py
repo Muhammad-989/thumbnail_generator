@@ -130,7 +130,9 @@ def load_dataset(dataset_root: Path, limit: int | None = None) -> DatasetInfo:
 def detect_device(preferred: str = "auto") -> tuple[str, str | None]:
     if preferred == "directml":
         try:
-            import torch_directml
+            import importlib
+
+            torch_directml = importlib.import_module("torch_directml")
         except ImportError as exc:
             raise RuntimeError(
                 "DirectML was requested, but torch-directml is not installed. "
@@ -248,7 +250,7 @@ def run_training(info: DatasetInfo, *, gpu: bool, output_dir: Path, steps: int, 
         command += ["--mixed_precision", "fp16", "--gradient_checkpointing"]
     if use_8bit_adam:
         try:
-            import bitsandbytes  # noqa: F401
+            __import__("bitsandbytes")
         except ImportError as exc:
             raise RuntimeError(
                 "8-bit Adam was requested, but bitsandbytes is not installed or cannot load on this platform."
