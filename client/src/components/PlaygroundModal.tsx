@@ -24,6 +24,17 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
 
   // The parent decides whether the modal exists. The modal owns form values,
   // generation progress, and the temporary success state while it is open.
+  // Sync a newly selected prompt into the textarea when the modal opens. The
+  // dependency on `isOpen` also handles selecting the same prompt again later.
+  useEffect(() => {
+    if (isOpen) {
+      setPromptText(initialPrompt);
+      setGeneratedUrl(null);
+      setGenerationError(null);
+      setGeneratedSuccess(false);
+    }
+  }, [initialPrompt, isOpen]);
+
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
@@ -137,9 +148,8 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
             <div>
               <label className="text-[11px] font-semibold text-slate-400 block mb-1.5">AI Engine</label>
               <select className="w-full p-2 rounded-xl bg-[#0b0a13] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#ec008c]">
-                <option>Picsart Video Gen V2 (60fps)</option>
-                <option>Picsart Photo Master 4K</option>
-                <option>Animate Stills V3</option>
+                <option>SDXL</option>
+
               </select>
             </div>
           </div>
