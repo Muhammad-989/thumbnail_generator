@@ -1,0 +1,6 @@
+{
+  "name": "Picsart - Prompts & Creative AI Playground",
+  "description": "Create better videos, images, and audio faster with ready-made prompts for video ads, social clips, and thumbnails.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

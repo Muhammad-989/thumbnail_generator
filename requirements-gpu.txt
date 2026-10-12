@@ -1,6 +1,6 @@
 # Install CUDA-enabled PyTorch separately using the command from https://pytorch.org/get-started/locally/
-torch>=2.2,<2.6
-torchvision>=0.17,<0.21
+torch>=2.7,<2.8
+torchvision>=0.22,<0.23
 diffusers==0.30.3
 transformers>=4.44,<4.47
 accelerate>=0.33,<1
@@ -11,3 +11,4 @@ safetensors>=0.4
 ftfy>=6.2
 huggingface_hub>=0.24,<1
 Pillow>=10.0,<12
+pymongo>=4.8,<5

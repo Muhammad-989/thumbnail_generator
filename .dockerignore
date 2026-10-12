@@ -10,3 +10,4 @@ outputs/
 *.safetensors
 .env
 curated_captioned_thumbnails/images/
+outputs/video/

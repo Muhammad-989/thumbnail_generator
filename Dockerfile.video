@@ -1,0 +1,21 @@
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-video.txt .
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install --index-url https://download.pytorch.org/whl/cu124 torch torchvision \
+    && python3 -m pip install -r requirements-video.txt
+
+COPY generate_video.py mux_audio.py ./
+
+CMD ["python3", "generate_video.py", "--help"]

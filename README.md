@@ -19,6 +19,16 @@ The CPU requirements include the CPU PyTorch wheel and the non-CUDA
 dependencies needed for the optional SDXL smoke-training attempt. They do not
 install bitsandbytes or torchao.
 
+The PyTorch requirement starts at 2.7 because ComfyUI's current
+`comfy-kitchen` custom operators use PEP 585 annotations such as `list[int]`,
+which older PyTorch schema inference rejects during startup. If this
+environment already has PyTorch 2.5 or older, upgrade the matching PyTorch
+and torchvision pair before starting ComfyUI:
+
+```bash
+python -m pip install --upgrade "torch>=2.7,<2.8" "torchvision>=0.22,<0.23"
+```
+
 The Linux/macOS equivalents are `source .venv/bin/activate`, `python
 validate_dataset.py`, and `bash run_smoke_test.sh`. The default CPU smoke test
 extracts/validates the dataset, checks nested paths and captions, and exits
@@ -86,6 +96,71 @@ support varies by operator and model; SDXL may still fail or fall back for
 some components. `torch-directml` is not supported in WSL in this workflow.
 The existing LoRA adapter must already have been trained elsewhere; this
 project does not claim non-ROCm AMD LoRA training support.
+
+## NVIDIA video generation with Wan 2.1
+
+For the Quadro P5200 16 GB laptop, the project includes a conservative
+short-video workflow using `Wan-AI/Wan2.1-T2V-1.3B-Diffusers`. It targets 832x480,
+81 frames (about 5 seconds at 16 FPS), one video at a time. The P5200 is an
+older Pascal GPU, so generation may take a long time and modern optimizations
+may not be supported. Check the actual driver and CUDA visibility first:
+
+```bash
+nvidia-smi
+python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no CUDA'); print(torch.cuda.get_device_capability(0) if torch.cuda.is_available() else '')"
+```
+
+### Docker video setup
+
+From the project root on the NVIDIA Linux machine:
+
+```bash
+docker build -f Dockerfile.video -t thumbnail-lora-video .
+mkdir -p outputs/video
+docker run --rm --gpus all thumbnail-lora-video nvidia-smi
+docker run --rm --gpus all thumbnail-lora-video \
+  python3 -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
+```
+
+Generate a first, shorter test before a 5-second clip:
+
+```bash
+docker run --rm --gpus all \
+  -v "$HOME/.cache/huggingface:/root/.cache/huggingface" \
+  -v "$PWD/outputs:/app/outputs" \
+  thumbnail-lora-video \
+  python3 generate_video.py \
+  --prompt "a cinematic gaming thumbnail scene, dramatic camera movement, vivid lighting" \
+  --frames 49 --fps 16 --width 640 --height 368 --steps 20 \
+  --output outputs/video/test.mp4
+```
+
+Then use the target clip settings:
+
+```bash
+docker run --rm --gpus all \
+  -v "$HOME/.cache/huggingface:/root/.cache/huggingface" \
+  -v "$PWD/outputs:/app/outputs" \
+  thumbnail-lora-video \
+  python3 generate_video.py \
+  --prompt "a cinematic gaming thumbnail scene, dramatic camera movement, vivid lighting" \
+  --output outputs/video/wan21-5s.mp4
+```
+
+If the P5200 runs out of VRAM, add `--cpu-offload`, reduce to `640x368`, or
+use 49 frames. CPU offload saves VRAM but is slower. Do not start with the
+Wan 14B model, 720p, batch generation, or audio-video models on this laptop.
+
+Wan 2.1 produces video without audio. Add narration, music, or sound effects
+separately and mux them with:
+
+```bash
+python3 mux_audio.py --video outputs/video/wan21-5s.mp4 \
+  --audio narration.wav --output outputs/video/final.mp4
+```
+
+The Docker image includes `ffmpeg` for this step. The image is intentionally
+separate from the CPU SDXL image because it requires an NVIDIA CUDA runtime.
 
 For AMD LoRA training, use a ROCm-compatible Linux/PyTorch installation if
 your specific GPU is supported, or use an NVIDIA/cloud GPU. Verify ROCm with
@@ -218,6 +293,243 @@ For private or gated models, authenticate with `huggingface-cli login` (or set
 `HF_TOKEN` in your shell). Never put a real token in `.env.example` or source.
 
 ## Layout, tests, and safety
+
+## MERN application and queued image generation
+
+The Express API and Python worker use MongoDB as a durable job queue. MongoDB
+is the only containerized service; the API and worker run locally so the worker
+can use the machine's Python environment and GPU.
+
+Start MongoDB and the API from the project root:
+
+```powershell
+docker compose up -d --build mongodb api
+```
+
+Seed the MongoDB prompt catalog:
+
+```powershell
+cd server
+MONGO_URL=mongodb://localhost:27017/thumbnail_generator node seed.js
+```
+
+The API is available at `http://localhost:5000`. Check both API and database
+connectivity:
+
+```powershell
+curl http://localhost:5000/api/health
+curl http://localhost:5000/api/prompts
+```
+
+In a second terminal, install the Python requirements if needed and start the
+long-running worker:
+
+```powershell
+python -m pip install -r requirements-cpu.txt
+python worker.py
+```
+
+When the worker runs in a container, use
+`MONGO_URL=mongodb://mongodb:27017/thumbnail_generator`; when it runs on the
+host, use `MONGO_URL=mongodb://127.0.0.1:27017/thumbnail_generator`.
+
+The worker loads the SDXL pipeline once, claims queued jobs atomically, and
+updates each job to `processing`, `completed`, or `failed`. Make sure a trained
+adapter exists at `outputs/smoke_test`, or set `LORA_DIR` to another adapter
+directory.
+
+## GPU machine workflow with Docker
+
+Use this workflow on the machine that has the NVIDIA GPU. It assumes Linux or
+WSL2 with Docker, an NVIDIA driver, and the NVIDIA Container Toolkit.
+
+### 1. Clone and prepare the machine
+
+```bash
+git clone https://github.com/Muhammad-989/thumbnail_generator.git
+cd thumbnail_generator
+cp .env.example .env
+```
+
+If the base model is gated, put `HF_TOKEN` in `.env` or export it in the shell.
+Never commit `.env`, tokens, model credentials, or datasets. Place the dataset
+ZIP beside `train_local.py`:
+
+```text
+curated_captioned_thumbnails.zip
+```
+
+### 2. Verify GPU passthrough
+
+Both commands must show the GPU:
+
+```bash
+nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
+If the Docker command fails, install/configure NVIDIA Container Toolkit before
+continuing.
+
+### 3. Build the CUDA image
+
+`Dockerfile.gpu` contains CUDA-enabled PyTorch, Diffusers, the training
+scripts, and the worker:
+
+```bash
+docker build -f Dockerfile.gpu -t thumbnail-generator-gpu .
+```
+
+### 4. Train the LoRA adapter in Docker
+
+Run a small GPU smoke test first:
+
+```bash
+docker run --rm --gpus all \
+  --env-file .env \
+  -v "$PWD:/app" -w /app \
+  thumbnail-generator-gpu \
+  python3 train_local.py --gpu-smoke-test --examples 8 --steps 3 --resolution 512
+```
+
+Then run the full training job:
+
+```bash
+docker run --rm --gpus all \
+  --env-file .env \
+  -v "$PWD:/app" -w /app \
+  thumbnail-generator-gpu \
+  python3 train_local.py --gpu --resolution 1024 --steps 1200
+```
+
+The trained adapter should be at
+`outputs/sdxl-youtube-thumbnail-lora`. Resume interrupted training with:
+
+```bash
+docker run --rm --gpus all \
+  --env-file .env \
+  -v "$PWD:/app" -w /app \
+  thumbnail-generator-gpu \
+  python3 train_local.py --gpu --resume latest
+```
+
+The bind mount keeps datasets, checkpoints, and the adapter on the host after
+the temporary training container is removed.
+
+### 5. Start MongoDB, API, and GPU worker
+
+The `gpu` Compose profile adds the model worker and passes through all GPUs:
+
+```bash
+docker compose --profile gpu up -d --build mongodb api gpu-worker
+docker compose exec api node seed.js
+```
+
+Container services must use this MongoDB hostname:
+
+```text
+mongodb://mongodb:27017/thumbnail_generator
+```
+
+Host commands must use:
+
+```text
+mongodb://127.0.0.1:27017/thumbnail_generator
+```
+
+The API and worker share the `generated_outputs` volume. The worker writes
+completed images there, and the API serves them from `/generated/...`. The
+trained adapter is shared through the host `./outputs` mount.
+
+Validate the complete stack:
+
+```bash
+docker compose --profile gpu ps
+curl http://localhost:5000/api/health
+curl http://localhost:5000/api/prompts
+docker compose logs --tail=100 gpu-worker
+```
+
+Expected health response:
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+### 6. Run the client
+
+On the same GPU machine:
+
+```bash
+cd client
+printf 'VITE_API_BASE_URL=http://localhost:5000\n' > .env.local
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+To test one generation request:
+
+```bash
+curl -X POST http://localhost:5000/api/images \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"a dramatic futuristic gaming thumbnail","width":512,"height":512,"steps":10,"seed":42}'
+```
+
+Poll the returned `statusUrl`:
+
+```bash
+curl http://localhost:5000/api/images/<job-id>
+```
+
+When the status is `completed`, open the returned URL at
+`http://localhost:5000/generated/<filename>`.
+
+### 7. Troubleshooting
+
+- If `nvidia-smi` works on the host but not in Docker, fix NVIDIA Container
+  Toolkit before changing application code.
+- If the worker cannot find the adapter, confirm
+  `outputs/sdxl-youtube-thumbnail-lora` exists.
+- If jobs stay `queued`, inspect `docker compose logs gpu-worker`.
+- If jobs become `failed`, read the job `error` field and worker logs. Common
+  causes are insufficient VRAM, an invalid adapter path, or incompatible CUDA
+  and PyTorch versions.
+- If a job completes but its image is unavailable, confirm both `api` and
+  `gpu-worker` mount `generated_outputs`.
+
+Stop the stack without deleting MongoDB data:
+
+```bash
+docker compose --profile gpu down
+```
+
+Use `docker compose down -v` only when you intentionally want to delete the
+MongoDB and generated-output volumes.
+
+Create a job:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/api/images -Method Post `
+  -ContentType "application/json" `
+  -Body '{"prompt":"a dramatic futuristic gaming thumbnail","width":512,"height":512,"steps":10,"seed":42}'
+```
+
+The API returns a `jobId` immediately. Poll the returned `statusUrl` until the
+status is `completed`, then prefix the returned `url` with
+`http://localhost:5000`. Failed jobs include an `error` field.
+
+For a React client, the request flow is:
+
+```text
+POST /api/images       -> { jobId, status: "queued", statusUrl }
+GET  /api/images/:id   -> { status: "queued" | "processing" | "completed" | "failed" }
+GET  /generated/name   -> completed PNG
+```
 
 ```text
 train_local.py

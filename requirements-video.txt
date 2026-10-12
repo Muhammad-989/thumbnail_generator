@@ -1,0 +1,10 @@
+# Install the CUDA-enabled torch/torchvision command appropriate for the host first.
+# For the Quadro P5200, the Dockerfile uses CUDA 12.4 wheels.
+diffusers>=0.31,<0.34
+transformers>=4.46,<4.54
+accelerate>=0.34,<1
+safetensors>=0.4
+ftfy>=6.2
+huggingface_hub>=0.24,<1
+Pillow>=10,<12
+imageio[ffmpeg]>=2.34
