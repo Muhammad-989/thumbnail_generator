@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { X, Sparkles, Wand2, Copy, Check } from 'lucide-react';
-import { createImageJob, getImageJob, resolveApiUrl } from '../api';
+import { createImageJob, createVideoJob, getImageJob, getVideoJob, resolveApiUrl } from '../api';
+import { MediaType } from '../types/creative';
 
 interface PlaygroundModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialPrompt: string;
+  mediaType: MediaType;
+  onMediaTypeChange: (mediaType: MediaType) => void;
 }
 
 export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
   isOpen,
   onClose,
   initialPrompt,
+  mediaType,
+  onMediaTypeChange,
 }) => {
   const [promptText, setPromptText] = useState<string>(initialPrompt);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -29,6 +34,7 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setPromptText(initialPrompt);
+      setAspectRatio(mediaType === 'video' ? '9:16' : '16:9');
       setGeneratedUrl(null);
       setGenerationError(null);
       setGeneratedSuccess(false);
@@ -51,23 +57,36 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
     setGenerationError(null);
 
     try {
-      const job = await createImageJob(promptText, width, height);
+      const job = mediaType === 'video'
+        ? await createVideoJob({
+            prompt: promptText,
+            width,
+            height,
+            frames: 49,
+            fps: 16,
+            steps: 20,
+            guidanceScale: 5,
+            seed: 42,
+          })
+        : await createImageJob(promptText, width, height);
       if (!job.statusUrl) throw new Error('The server did not return a status URL');
 
       let status = job;
       while (status.status === 'queued' || status.status === 'processing') {
         await new Promise(resolve => setTimeout(resolve, 2000));
-        status = await getImageJob(job.statusUrl);
+        status = mediaType === 'video'
+          ? await getVideoJob(job.statusUrl)
+          : await getImageJob(job.statusUrl);
         setGenerationProgress(status.status === 'processing' ? 60 : 20);
       }
-      if (status.status === 'failed') throw new Error(status.error || 'Image generation failed');
-      if (!status.url) throw new Error('The completed job did not include an image URL');
+      if (status.status === 'failed') throw new Error(status.error || `${mediaType === 'video' ? 'Video' : 'Image'} generation failed`);
+      if (!status.url) throw new Error(`The completed job did not include a ${mediaType === 'video' ? 'video' : 'image'} URL`);
 
       setGenerationProgress(100);
       setGeneratedUrl(resolveApiUrl(status.url));
       setGeneratedSuccess(true);
     } catch (error: unknown) {
-      setGenerationError(error instanceof Error ? error.message : 'Image generation failed');
+      setGenerationError(error instanceof Error ? error.message : `${mediaType === 'video' ? 'Video' : 'Image'} generation failed`);
     } finally {
       setIsGenerating(false);
     }
@@ -90,8 +109,12 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Picsart AI Playground</h3>
-              <p className="text-xs text-slate-400">Generate videos & visuals from ready-made prompts</p>
+              <h3 className="text-base font-bold text-white">
+                {mediaType === 'video' ? 'Short Video Playground' : 'YouTube Thumbnail Playground'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {mediaType === 'video' ? 'Create a 4-second Wan 2.1 motion clip' : 'Create a scroll-stopping SDXL thumbnail'}
+              </p>
             </div>
           </div>
           <button
@@ -147,9 +170,17 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
 
             <div>
               <label className="text-[11px] font-semibold text-slate-400 block mb-1.5">AI Engine</label>
-              <select className="w-full p-2 rounded-xl bg-[#0b0a13] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#ec008c]">
-                <option>SDXL</option>
-
+              <select
+                value={mediaType}
+                onChange={(event) => {
+                  const nextMediaType = event.target.value as MediaType;
+                  setAspectRatio(nextMediaType === 'video' ? '9:16' : '16:9');
+                  onMediaTypeChange(nextMediaType);
+                }}
+                className="w-full p-2 rounded-xl bg-[#0b0a13] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#ec008c]"
+              >
+                <option value="image">SDXL · YouTube thumbnails</option>
+                <option value="video">Wan 2.1 · 4-second videos</option>
               </select>
             </div>
           </div>
@@ -157,7 +188,9 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
           {/* Generation Progress Bar */}
           {isGenerating && (
             <div className="p-4 bg-purple-950/20 border border-purple-800/40 rounded-2xl space-y-2 text-center">
-              <p className="text-xs font-semibold text-pink-300">Generating video motion clip in Playground...</p>
+              <p className="text-xs font-semibold text-pink-300">
+                Generating {mediaType === 'video' ? 'Wan 2.1 video' : 'SDXL thumbnail'}...
+              </p>
               <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden p-0.5 border border-purple-900/50">
                 <div 
                   className="h-full bg-gradient-to-r from-purple-600 via-[#ec008c] to-indigo-500 rounded-full transition-all duration-200"
@@ -170,7 +203,9 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
           {/* Success Banner */}
           {generatedSuccess && (
             <div className="p-3.5 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl flex items-center justify-between text-xs text-white">
-              <span className="text-emerald-300 font-semibold">Generation complete! 4-second motion preview ready.</span>
+              <span className="text-emerald-300 font-semibold">
+                Generation complete! {mediaType === 'video' ? 'Video' : 'Thumbnail'} preview ready.
+              </span>
               <button 
                 onClick={onClose}
                 className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold cursor-pointer"
@@ -187,11 +222,19 @@ export const PlaygroundModal: React.FC<PlaygroundModalProps> = ({
           )}
 
           {generatedUrl && (
-            <img
-              src={generatedUrl}
-              alt="Generated result"
-              className="w-full rounded-2xl border border-white/[0.08]"
-            />
+            mediaType === 'video' ? (
+              <video
+                src={generatedUrl}
+                controls
+                autoPlay
+                loop
+                muted
+                aria-label="Generated video result"
+                className="w-full rounded-2xl border border-white/[0.08]"
+              />
+            ) : (
+              <img src={generatedUrl} alt="Generated YouTube thumbnail" className="w-full rounded-2xl border border-white/[0.08]" />
+            )
           )}
 
           {/* Footer Submit Button */}

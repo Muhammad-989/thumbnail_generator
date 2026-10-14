@@ -1,20 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Frontend
 
-# Run and deploy your AI Studio app
+This directory contains the React/Vite browser client for Thumbnail Generator.
+The complete GPU-machine setup, Docker architecture, API contracts, model
+requirements, and troubleshooting guide are in the repository
+[README.md](../README.md).
 
-This contains everything you need to run your app locally.
+## Local development
 
-View your app in AI Studio: https://ai.studio/apps/3838a90b-5a6f-4445-b869-cd6d54e4edaf
+Requires Node.js 22 or newer:
 
-## Run Locally
+```bash
+npm ci
+cp .env.example .env.local
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+Set `VITE_API_BASE_URL` in `.env.local` when the API is not on
+`http://localhost:5000`.
 
+## Checks
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm run lint
+npm run build
+```
+
+The frontend has two model paths:
+
+- SDXL for YouTube thumbnail/image jobs through `/api/images`.
+- Wan 2.1 for 4-second text-to-video jobs through `/api/videos`.
+
+See [API.md](./API.md) for the frontend flow and endpoint contracts.

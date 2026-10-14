@@ -18,7 +18,7 @@ interface AdCardProps {
   onToggleLike: (id: string, e: React.MouseEvent) => void;
   onDownload: (creative: PromptPack, e: React.MouseEvent) => void;
   onShare: (creative: PromptPack, e: React.MouseEvent) => void;
-  onQuickUsePrompt?: (promptText: string, e: React.MouseEvent) => void;
+  onQuickUsePrompt?: (promptText: string, mediaType: PromptPack['mediaType'], e: React.MouseEvent) => void;
   isLiked?: boolean;
 }
 
@@ -47,7 +47,7 @@ export const AdCard: React.FC<AdCardProps> = ({
   const handleQuickUse = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onQuickUsePrompt) {
-      onQuickUsePrompt(mainPromptText, e);
+      onQuickUsePrompt(mainPromptText, creative.mediaType, e);
     } else {
       onOpenInsideView(creative);
     }

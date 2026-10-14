@@ -16,6 +16,6 @@ RUN python3 -m pip install --upgrade pip \
     && python3 -m pip install --index-url https://download.pytorch.org/whl/cu124 torch torchvision \
     && python3 -m pip install -r requirements-video.txt
 
-COPY generate_video.py mux_audio.py ./
+COPY generate_video.py mux_audio.py worker_video.py ./
 
-CMD ["python3", "generate_video.py", "--help"]
+CMD ["python3", "worker_video.py"]

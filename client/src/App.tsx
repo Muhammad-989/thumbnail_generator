@@ -11,7 +11,7 @@ import { HeroSection } from './components/HeroSection';
 import { AdCard } from './components/AdCard';
 import { PromptDetailView } from './components/PromptDetailView';
 import { PlaygroundModal } from './components/PlaygroundModal';
-import { CheckCircle2, FolderArchive } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FolderArchive, Image as ImageIcon, Sparkles, Video } from 'lucide-react';
 
 export default function App() {
   // `packs` is the catalog displayed by the cards. React state is used so this
@@ -29,6 +29,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPlaygroundOpen, setIsPlaygroundOpen] = useState<boolean>(false);
   const [playgroundPrompt, setPlaygroundPrompt] = useState<string>('');
+  const [playgroundMediaType, setPlaygroundMediaType] = useState<PromptPack['mediaType']>('image');
 
   useEffect(() => {
     getPromptPacks()
@@ -142,16 +143,15 @@ export default function App() {
     }
   };
 
-  const handleUsePrompt = (promptText: string) => {
-    // Passes the selected prompt down into PlaygroundModal. The modal currently
-    // simulates generation; this is where the future API flow starts in the UI.
+  const handleUsePrompt = (promptText: string, mediaType: PromptPack['mediaType'] = 'image') => {
     setPlaygroundPrompt(promptText);
+    setPlaygroundMediaType(mediaType);
     setIsPlaygroundOpen(true);
   };
 
-  const handleQuickUsePrompt = (promptText: string, e: React.MouseEvent) => {
+  const handleQuickUsePrompt = (promptText: string, mediaType: PromptPack['mediaType'], e: React.MouseEvent) => {
     e.stopPropagation();
-    handleUsePrompt(promptText);
+    handleUsePrompt(promptText, mediaType);
   };
 
   const handleStepClick = (stepNumber: number) => {
@@ -237,6 +237,50 @@ export default function App() {
               onStepClick={handleStepClick}
             />
 
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-5" aria-label="AI generation tools">
+              <div className="relative overflow-hidden rounded-3xl border border-pink-500/25 bg-gradient-to-br from-pink-950/60 via-[#171328] to-[#121021] p-6 sm:p-7 shadow-xl shadow-pink-950/20">
+                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-pink-500/20 blur-3xl" />
+                <div className="relative flex h-full flex-col justify-between gap-8">
+                  <div>
+                    <div className="mb-5 flex items-center justify-between">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pink-500/20 text-pink-300 ring-1 ring-pink-400/30">
+                        <ImageIcon className="h-5 w-5" />
+                      </div>
+                      <span className="rounded-full border border-pink-400/30 bg-pink-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-pink-200">Image studio</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white sm:text-2xl">YouTube thumbnails</h2>
+                    <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">Turn a title or idea into a bold, high-contrast thumbnail designed to earn the click.</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-400"><Sparkles className="h-3.5 w-3.5 text-pink-300" /> Default model <strong className="text-white">SDXL</strong></div>
+                    <button onClick={() => handleUsePrompt('A dramatic YouTube thumbnail with a clear subject, expressive face, bold foreground/background separation, high contrast lighting, and intentional negative space for large readable title text.', 'image')} className="btn-analyze-gradient inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-pink-950/30">
+                      Create thumbnail <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-3xl border border-indigo-400/25 bg-gradient-to-br from-indigo-950/60 via-[#15152c] to-[#121021] p-6 sm:p-7 shadow-xl shadow-indigo-950/20">
+                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-indigo-500/20 blur-3xl" />
+                <div className="relative flex h-full flex-col justify-between gap-8">
+                  <div>
+                    <div className="mb-5 flex items-center justify-between">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/30"><Video className="h-5 w-5" /></div>
+                      <span className="rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-200">Motion studio</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white sm:text-2xl">Short 4-second videos</h2>
+                    <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">Animate an idea into a compact cinematic clip for Shorts, Reels, product teasers, and ads.</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-400"><Sparkles className="h-3.5 w-3.5 text-indigo-300" /> Default model <strong className="text-white">Wan 2.1</strong></div>
+                    <button onClick={() => handleUsePrompt('A cinematic 4-second short video with clear subject motion, smooth camera movement, vivid lighting, and a polished social-first composition.', 'video')} className="btn-analyze-gradient inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-pink-950/30">
+                      Create video <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* Exactly 4 Images per Row (in 1 row add 4 images) */}
             {isLoadingPacks ? (
               <div className="text-center py-16 text-sm text-slate-400">Loading prompt packs...</div>
@@ -280,6 +324,8 @@ export default function App() {
         isOpen={isPlaygroundOpen}
         onClose={() => setIsPlaygroundOpen(false)}
         initialPrompt={playgroundPrompt}
+        mediaType={playgroundMediaType}
+        onMediaTypeChange={setPlaygroundMediaType}
       />
 
       {/* Toast Notification */}

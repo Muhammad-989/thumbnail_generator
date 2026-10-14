@@ -140,32 +140,31 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
       </div>
 
-      {/* Search Input & Results Count Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        {/* Search Bar Input */}
-        <div className="relative flex-1 max-w-xl">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search thumbnails video clips"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#ec008c]/70 focus:bg-white/[0.06] transition-all"
-          />
-          <button 
-            type="button"
-            className="btn-analyze-gradient w-7 h-7 rounded-lg text-white absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center transition-all cursor-pointer hover:scale-105 shadow-md"
-            title="Search"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1 w-full">
+  {/* Search Bar Input */}
+  <div className="relative w-full max-w-xl">
+    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+    <input
+      type="text"
+      placeholder="Search thumbnails video clips"
+      value={searchQuery}
+      onChange={(e) => onSearchChange(e.target.value)}
+      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#ec008c]/70 focus:bg-white/[0.06] transition-all"
+    />
+    <button 
+      type="button"
+      className="btn-analyze-gradient w-7 h-7 rounded-lg text-white absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center transition-all cursor-pointer hover:scale-105 shadow-md"
+      title="Search"
+    >
+      <ArrowRight className="w-3.5 h-3.5" />
+    </button>
+  </div>
 
-        {/* Results Count Text matching screenshot: "11 results" */}
-        <div className="text-xs font-semibold text-slate-400 shrink-0 font-mono">
-          <span>{resultCount} results</span>
-        </div>
-      </div>
+  {/* Results Count Text */}
+  <div className="text-xs font-semibold text-slate-400 shrink-0 font-mono">
+    <span>{resultCount} results</span>
+  </div>
+</div>
     </div>
   );
 };

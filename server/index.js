@@ -8,8 +8,8 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 
 const app = express();
-const projectRoot = path.resolve(__dirname, "..");
-const generatedDirectory = path.join(projectRoot, "outputs", "api");
+const projectRoot = process.env.PROJECT_ROOT || path.resolve(__dirname, "..");
+const generatedDirectory = process.env.GENERATED_OUTPUT_DIR || path.join(projectRoot, "outputs", "api");
 const port = Number(process.env.PORT || 5000);
 const mongoUrl = process.env.MONGO_URL || "mongodb://127.0.0.1:27017/thumbnail_generator";
 
@@ -35,6 +35,33 @@ const generationJobSchema = new mongoose.Schema(
 );
 
 const GenerationJob = mongoose.model("GenerationJob", generationJobSchema);
+
+const videoJobSchema = new mongoose.Schema(
+  {
+    _id: { type: String, default: () => crypto.randomUUID() },
+    prompt: { type: String, required: true, trim: true },
+    width: { type: Number, required: true },
+    height: { type: Number, required: true },
+    frames: { type: Number, required: true },
+    fps: { type: Number, required: true },
+    steps: { type: Number, required: true },
+    guidanceScale: { type: Number, required: true },
+    seed: { type: Number, required: true },
+    cpuOffload: { type: Boolean, default: false },
+    status: {
+      type: String,
+      enum: ["queued", "processing", "completed", "failed"],
+      default: "queued",
+    },
+    outputFilename: String,
+    error: String,
+    startedAt: Date,
+    completedAt: Date,
+  },
+  { timestamps: true, collection: "videojobs" }
+);
+
+const VideoJob = mongoose.model("VideoJob", videoJobSchema);
 
 const promptVariantSchema = new mongoose.Schema(
   {
@@ -96,6 +123,13 @@ app.use("/assets", express.static(path.join(projectRoot, "client", "src", "asset
 function validateDimension(value, name) {
   if (!Number.isInteger(value) || value < 256 || value > 2048) {
     return `${name} must be an integer between 256 and 2048`;
+  }
+
+  function validateVideoDimension(value, name) {
+    if (!Number.isInteger(value) || value < 256 || value > 1536 || value % 8 !== 0) {
+      return `${name} must be an integer between 256 and 1536 and divisible by 8`;
+    }
+    return null;
   }
   return null;
 }
@@ -239,6 +273,91 @@ app.get("/api/images/:id", async (req, res, next) => {
   }
 });
 
+app.post("/api/videos", async (req, res, next) => {
+  try {
+    const {
+      prompt,
+      width = 832,
+      height = 480,
+      frames = 49,
+      fps = 16,
+      steps = 20,
+      guidanceScale = 5,
+      seed = 42,
+      cpuOffload = false,
+    } = req.body;
+
+    if (typeof prompt !== "string" || prompt.trim().length === 0 || prompt.trim().length > 2000) {
+      return res.status(400).json({ error: "prompt is required and must be at most 2000 characters" });
+    }
+    for (const [value, name] of [[width, "width"], [height, "height"]]) {
+      const error = validateVideoDimension(value, name);
+      if (error) return res.status(400).json({ error });
+    }
+    if (!Number.isInteger(frames) || frames < 5 || frames > 161 || frames % 4 !== 1) {
+      return res.status(400).json({ error: "frames must be 5 + a multiple of 4, between 5 and 161" });
+    }
+    if (!Number.isInteger(fps) || fps < 1 || fps > 60) {
+      return res.status(400).json({ error: "fps must be an integer between 1 and 60" });
+    }
+    if (!Number.isInteger(steps) || steps < 1 || steps > 100) {
+      return res.status(400).json({ error: "steps must be an integer between 1 and 100" });
+    }
+    if (typeof guidanceScale !== "number" || guidanceScale < 0 || guidanceScale > 20) {
+      return res.status(400).json({ error: "guidanceScale must be a number between 0 and 20" });
+    }
+    if (!Number.isInteger(seed) || seed < 0 || seed > 2147483647) {
+      return res.status(400).json({ error: "seed must be an integer between 0 and 2147483647" });
+    }
+    if (typeof cpuOffload !== "boolean") {
+      return res.status(400).json({ error: "cpuOffload must be a boolean" });
+    }
+
+    const job = await VideoJob.create({
+      prompt: prompt.trim(),
+      width,
+      height,
+      frames,
+      fps,
+      steps,
+      guidanceScale,
+      seed,
+      cpuOffload,
+    });
+    return res.status(202).json({
+      jobId: job._id,
+      status: job.status,
+      statusUrl: `/api/videos/${job._id}`,
+      prompt: job.prompt,
+      createdAt: job.createdAt,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/api/videos/:id", async (req, res, next) => {
+  try {
+    const job = await VideoJob.findById(req.params.id).lean();
+    if (!job) return res.status(404).json({ error: "video generation job not found" });
+
+    const response = {
+      jobId: job._id,
+      status: job.status,
+      prompt: job.prompt,
+      createdAt: job.createdAt,
+    };
+    if (job.status === "completed") {
+      response.url = `/generated/${job.outputFilename}`;
+      response.completedAt = job.completedAt;
+    }
+    if (job.status === "failed") response.error = job.error;
+    return res.json(response);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({ error: "internal server error" });
@@ -257,4 +376,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, GenerationJob, PromptPack, Favorite, start };
+module.exports = { app, GenerationJob, VideoJob, PromptPack, Favorite, start };

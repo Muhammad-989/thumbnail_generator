@@ -17,7 +17,7 @@ interface PromptDetailViewProps {
   pack: PromptPack;
   onBack: () => void;
   onSelectRelatedPrompt: (title: string) => void;
-  onUsePrompt: (promptText: string) => void;
+  onUsePrompt: (promptText: string, mediaType: PromptPack['mediaType']) => void;
   isLiked?: boolean;
   onToggleLike: (id: string, e: React.MouseEvent) => void;
 }
@@ -174,7 +174,7 @@ export const PromptDetailView: React.FC<PromptDetailViewProps> = ({
 
               {/* Use this prompt - Primary Action Button matching Screenshot */}
               <button
-                onClick={() => onUsePrompt(activeVariant.prompt)}
+                onClick={() => onUsePrompt(activeVariant.prompt, pack.mediaType)}
                 className="btn-analyze-gradient px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold text-white shadow-md cursor-pointer ml-auto flex items-center gap-2"
               >
                 <Wand2 className="w-4 h-4 text-white" />
@@ -225,7 +225,7 @@ export const PromptDetailView: React.FC<PromptDetailViewProps> = ({
         {/* Right Column: Result Preview Card matching Screenshot */}
         <div className="lg:col-span-5">
           <div className="bg-[#121021] border border-white/[0.09] rounded-2xl overflow-hidden shadow-2xl p-4 flex flex-col justify-between space-y-4">
-            {/* Image Preview with motion preview toggle */}
+            {/* Preview media */}
             <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-black group">
               <img
                 src={activeVariant.previewImage || pack.previewImage}
@@ -235,35 +235,38 @@ export const PromptDetailView: React.FC<PromptDetailViewProps> = ({
                 }`}
               />
 
-              {/* TODO(API): Replace this image scale animation with the generated
-                  preview URL/status returned by the generation API. */}
-              {/* Video Play / Simulation Button */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                <button
-                  onClick={() => setIsPlayingPreview(!isPlayingPreview)}
-                  className="w-12 h-12 rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform cursor-pointer"
-                >
-                  {isPlayingPreview ? (
-                    <Pause className="w-5 h-5 fill-slate-900" />
-                  ) : (
-                    <Play className="w-5 h-5 fill-slate-900 ml-0.5" />
-                  )}
-                </button>
-              </div>
+              {pack.mediaType === 'video' && (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                    <button
+                      onClick={() => setIsPlayingPreview(!isPlayingPreview)}
+                      className="w-12 h-12 rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform cursor-pointer"
+                      aria-label={isPlayingPreview ? 'Pause video preview' : 'Play video preview'}
+                    >
+                      {isPlayingPreview ? (
+                        <Pause className="w-5 h-5 fill-slate-900" />
+                      ) : (
+                        <Play className="w-5 h-5 fill-slate-900 ml-0.5" />
+                      )}
+                    </button>
+                  </div>
 
-              {/* Live Animation Indicator */}
-              {isPlayingPreview && (
-                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] text-pink-300 font-mono flex items-center gap-1.5 border border-pink-500/30">
-                  <span className="w-2 h-2 rounded-full bg-[#ec008c] animate-ping" />
-                  <span>Previewing 4s Motion Loop</span>
-                </div>
+                  {isPlayingPreview && (
+                    <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] text-pink-300 font-mono flex items-center gap-1.5 border border-pink-500/30">
+                      <span className="w-2 h-2 rounded-full bg-[#ec008c] animate-ping" />
+                      <span>Previewing 4s Motion Loop</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             {/* Bottom Caption matching screenshot */}
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-white">Result preview</p>
-              <p className="text-xs text-slate-400">A starting point for your next video.</p>
+              <p className="text-xs text-slate-400">
+                {pack.mediaType === 'video' ? 'A starting point for your next short video.' : 'A starting point for your next thumbnail.'}
+              </p>
             </div>
           </div>
         </div>

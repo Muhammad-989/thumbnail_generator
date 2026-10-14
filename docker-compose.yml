@@ -9,11 +9,14 @@ services:
 
   api:
     build:
-      context: ./server
+      context: .
+      dockerfile: server/Dockerfile
     restart: unless-stopped
     environment:
       PORT: 5000
       MONGO_URL: mongodb://mongodb:27017/thumbnail_generator
+      PROJECT_ROOT: /app
+      GENERATED_OUTPUT_DIR: /app/outputs/api
     ports:
       - "5000:5000"
     volumes:
@@ -32,6 +35,23 @@ services:
     environment:
       MONGO_URL: mongodb://mongodb:27017/thumbnail_generator
       LORA_DIR: /app/outputs/sdxl-youtube-thumbnail-lora
+      WORKER_POLL_SECONDS: 2
+    volumes:
+      - ./outputs:/app/outputs
+      - generated_outputs:/app/outputs/api
+    depends_on:
+      mongodb:
+        condition: service_started
+
+  video-worker:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile.video
+    restart: unless-stopped
+    gpus: all
+    environment:
+      MONGO_URL: mongodb://mongodb:27017/thumbnail_generator
       WORKER_POLL_SECONDS: 2
     volumes:
       - ./outputs:/app/outputs

@@ -14,6 +14,18 @@ export interface GenerationJobResponse {
   error?: string;
 }
 
+export interface VideoJobOptions {
+  prompt: string;
+  width: number;
+  height: number;
+  frames?: number;
+  fps?: number;
+  steps?: number;
+  guidanceScale?: number;
+  seed?: number;
+  cpuOffload?: boolean;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
   const body = await response.json().catch(() => null);
@@ -79,6 +91,20 @@ export function createImageJob(
 }
 
 export function getImageJob(statusUrl: string): Promise<GenerationJobResponse> {
+  return request<GenerationJobResponse>(
+    statusUrl.startsWith('http') ? statusUrl.replace(API_BASE_URL, '') : statusUrl,
+  );
+}
+
+export function createVideoJob(options: VideoJobOptions): Promise<GenerationJobResponse> {
+  return request<GenerationJobResponse>('/api/videos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+}
+
+export function getVideoJob(statusUrl: string): Promise<GenerationJobResponse> {
   return request<GenerationJobResponse>(
     statusUrl.startsWith('http') ? statusUrl.replace(API_BASE_URL, '') : statusUrl,
   );
